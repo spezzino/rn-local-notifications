@@ -1,0 +1,40 @@
+{
+  "name": "rn-local-notifications",
+  "title": "React Native Local Notifications",
+  "version": "0.0.1",
+  "description": "Local notifications module",
+  "main": "index.js",
+  "files": [
+    "README.md",
+    "android",
+    "src",
+    "ios",
+    "react-native-local-notifications.podspec"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spezzino/rn-local-notifications.git",
+    "baseUrl": "https://github.com/spezzino/rn-local-notifications"
+  },
+  "keywords": [
+    "react-native"
+  ],
+  "author": {
+    "name": "Stefano Pezzino",
+    "email": "spezzino.13@gmail.com"
+  },
+  "license": "MIT",
+  "licenseFilename": "LICENSE",
+  "readmeFilename": "README.md",
+  "peerDependencies": {
+    "react": "^16.8.1",
+    "react-native": ">=0.60.0-rc.0 <1.0.x"
+  },
+  "devDependencies": {
+    "react": "^16.9.0",
+    "react-native": "^0.61.5"
+  }
+}
