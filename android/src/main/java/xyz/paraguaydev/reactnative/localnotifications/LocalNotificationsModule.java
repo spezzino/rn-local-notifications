@@ -1,25 +1,41 @@
 package xyz.paraguaydev.reactnative.localnotifications;
 
+import android.app.Activity;
+import android.app.Application;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,7 +44,7 @@ import java.util.Random;
 
 import xyz.paraguaydev.reactnative.localnotifications.utils.ReadableMapUtils;
 
-public class LocalNotificationsModule extends ReactContextBaseJavaModule {
+public class LocalNotificationsModule extends ReactContextBaseJavaModule implements ActivityEventListener, Application.ActivityLifecycleCallbacks {
 
     private final ReactApplicationContext reactContext;
     private final Long DEFAULT_VIBRATION = 300L;
@@ -36,11 +52,70 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
     public LocalNotificationsModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+
+        reactContext.addActivityEventListener(this);
+
+        Application applicationContext = (Application) reactContext.getApplicationContext();
+        applicationContext.registerActivityLifecycleCallbacks(this);
+        this.registerNotificationsReceiveNotificationActions();
     }
 
     @Override
     public String getName() {
         return "LocalNotifications";
+    }
+
+    private void registerNotificationsReceiveNotificationActions() {
+        IntentFilter intentFilter = new IntentFilter();
+
+        getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle bundle = intent.getBundleExtra("notification");
+
+                // Notify the action.
+                LocalNotificationsModule.this.onNotificationReceived(bundle);
+
+                // Dismiss the notification popup.
+                NotificationManager manager = (NotificationManager) context.getSystemService(context.NOTIFICATION_SERVICE);
+                int notificationID = Integer.parseInt(bundle.getString("id"));
+                manager.cancel(notificationID);
+            }
+        }, intentFilter);
+    }
+
+    private Bundle getBundleFromIntent(Intent intent) {
+        Bundle bundle = null;
+        if (intent.hasExtra("notification")) {
+            bundle = intent.getBundleExtra("notification");
+        }
+        return bundle;
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        Bundle bundle = this.getBundleFromIntent(intent);
+        if (bundle != null) {
+            bundle.putBoolean("foreground", false);
+            intent.putExtra("notification", bundle);
+            this.onNotificationReceived(bundle);
+        }
+    }
+
+    private void sendEvent(String eventName,
+                           @Nullable WritableMap params) {
+        reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(eventName, params);
+    }
+
+    private void onNotificationReceived(Bundle bundle) {
+        try {
+            WritableMap params = ReadableMapUtils.convertJsonToMap(LocalNotificationAttributes.fromBundle(bundle).toJSONObject());
+            sendEvent("onNotification", params);
+        } catch (JSONException e) {
+            // TODO promise reject
+        }
     }
 
     @ReactMethod
@@ -76,7 +151,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
         }
 
         if (args.hasKey("color")) {
-            attributes.setColor(hexColorToInt(args.getString("color")));
+            attributes.setHexColor(args.getString("color"));
         }
 
         if (args.hasKey("title")) {
@@ -103,18 +178,20 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
         }
 
         int largeIconResId = res.getIdentifier("ic_launcher", "mipmap", packageName);
+        attributes.setLargeIconString("ic_launcher");
         if (args.hasKey("largeIcon")) {
             String largeIcon = args.getString("largeIcon");
+            attributes.setLargeIconString(largeIcon);
 
             if (largeIcon != null) {
                 largeIconResId = res.getIdentifier(largeIcon, "mipmap", packageName);
+                attributes.setHasLargeIcon(true);
             }
         }
         Bitmap largeIconBitmap = BitmapFactory.decodeResource(res, largeIconResId);
 
         if (largeIconResId != 0 && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)) {
             attributes.setLargeIcon(largeIconBitmap);
-            attributes.setHasLargeIcon(true);
         }
 
 
@@ -122,62 +199,19 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
             attributes.setOngoing(args.getBoolean("ongoing"));
         }
 
-        attributes.setPriority(NotificationCompat.PRIORITY_DEFAULT);
         if (args.hasKey("priority")) {
-            int priorityInt;
-            String priority = args.getString("priority");
-            switch (priority.toLowerCase()) {
-                case "max":
-                    priorityInt = NotificationCompat.PRIORITY_MAX;
-                    break;
-                case "high":
-                    priorityInt = NotificationCompat.PRIORITY_HIGH;
-                    break;
-                case "low":
-                    priorityInt = NotificationCompat.PRIORITY_LOW;
-                    break;
-                case "min":
-                    priorityInt = NotificationCompat.PRIORITY_MIN;
-                    break;
-                default:
-                    priorityInt = NotificationCompat.PRIORITY_DEFAULT;
-            }
-
-            attributes.setPriority(priorityInt);
+            attributes.setPriority(args.getString("priority"));
         }
 
-        attributes.setPriority(NotificationManagerCompat.IMPORTANCE_DEFAULT);
         if (args.hasKey("importance")) {
-            int importanceInt;
-            String importance = args.getString("importance");
-            switch (importance.toLowerCase()) {
-                case "max":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_MAX;
-                    break;
-                case "high":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_HIGH;
-                    break;
-                case "low":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_LOW;
-                    break;
-                case "min":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_MIN;
-                    break;
-                case "none":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_NONE;
-                    break;
-                case "unspecified":
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_UNSPECIFIED;
-                    break;
-                default:
-                    importanceInt = NotificationManagerCompat.IMPORTANCE_DEFAULT;
-            }
-            attributes.setImportance(importanceInt);
+            attributes.setImportance(args.getString("importance"));
         }
 
         int smallIconResId = res.getIdentifier("ic_notification", "mipmap", packageName);
+        attributes.setSmallIconString("ic_notification");
         if (args.hasKey("smallIcon")) {
             String smallIcon = args.getString("smallIcon");
+            attributes.setSmallIconString(smallIcon);
 
             if (smallIcon != null) {
                 smallIconResId = res.getIdentifier(smallIcon, "mipmap", packageName);
@@ -197,6 +231,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
         if (args.hasKey("playSound") && args.getBoolean("playSound")) {
             Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
             attributes.setSound(soundUri);
+            attributes.setPlaySound(true);
         }
 
         if (args.hasKey("vibrate") && args.getBoolean("vibrate")) {
@@ -208,60 +243,50 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
 
             vibratePattern = new long[]{0, vibration};
 
-            attributes.setVibrate(args.getBoolean("vibrate"));
+            attributes.setVibrate(true);
             attributes.setVibrationPattern(vibratePattern);
         }
 
-        attributes.setVisibility(NotificationCompat.VISIBILITY_PRIVATE);
         if (args.hasKey("visibility")) {
-            int visibilityInt;
-            String visibility = args.getString("visibility");
-            switch (visibility.toLowerCase()) {
-                case "private":
-                    visibilityInt = NotificationCompat.VISIBILITY_PRIVATE;
-                    break;
-                case "public":
-                    visibilityInt = NotificationCompat.VISIBILITY_PUBLIC;
-                    break;
-                case "secret":
-                    visibilityInt = NotificationCompat.VISIBILITY_SECRET;
-                    break;
-                default:
-                    visibilityInt = NotificationCompat.VISIBILITY_PRIVATE;
-            }
-            attributes.setVisibility(visibilityInt);
+            attributes.setVisibility(args.getString("visibility"));
         }
 
-//        callback.invoke("Received numberArgument: "+numberArgument +" stringArgument: "+stringArgument);
-    }
+        if (attributes.getChannelId().equals("Default")) {
+            createDefaultNotificationChannel(attributes.getChannelId(), attributes.getChannelName(), attributes.getChannelDescription(), attributes.getImportance());
+        } else {
+            createChannelIfNeeded(attributes.getChannelId(), attributes.getChannelName(), attributes.getChannelDescription(), attributes.getSound(), attributes.getImportance(), attributes.getVibrationPattern());
+        }
 
-    private int hexColorToInt(String hexColor) {
-        String hex = hexColor.replace("#", "");
-        return (Integer.parseInt(hex.substring(0, 2), 16) << 24) + Integer.parseInt(hex.substring(2), 16);
+        this.postNotification(attributes);
+
+//        callback.invoke("Received numberArgument: "+numberArgument +" stringArgument: "+stringArgument);
     }
 
     private void createDefaultNotificationChannel(String channelId, String channelName, String channelDescription, int importance) {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
-            channel.setDescription(channelDescription);
-            // Register the channel with the system; you can't change the importance
-            // or other notification behaviors after this
             NotificationManager notificationManager = reactContext.getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
+            NotificationChannel defaultChannel = notificationManager.getNotificationChannel(channelId);
+            if (defaultChannel == null) {
+                NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
+                channel.setDescription(channelDescription);
+                // Register the channel with the system; you can't change the importance
+                // or other notification behaviors after this
+
+                notificationManager.createNotificationChannel(channel);
+            }
         }
     }
 
-    private void createChannelIfNeeded(NotificationManager manager, String channelId, String channelName, String channelDescription, Uri soundUri, int importance, long[] vibratePattern) {
+    private void createChannelIfNeeded(String channelId, String channelName, String channelDescription, Uri soundUri, int importance, long[] vibratePattern) {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
             return;
-        if (manager == null)
-            return;
 
-        NotificationChannel channel = manager.getNotificationChannel(channelId);
+        NotificationManager notificationManager = reactContext.getSystemService(NotificationManager.class);
+        NotificationChannel channel = notificationManager.getNotificationChannel(channelId);
 
         if (channel == null) {
             channel = new NotificationChannel(channelId, channelName, importance);
@@ -282,12 +307,22 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
                 channel.setSound(null, null);
             }
 
-            manager.createNotificationChannel(channel);
+            notificationManager.createNotificationChannel(channel);
         }
     }
 
-    private void createNotification(LocalNotificationAttributes attributes) {
+    private void postNotification(LocalNotificationAttributes attributes) {
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(reactContext);
+
+        Intent intent = new Intent(reactContext, getMainActivityClass());
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Bundle bundle = new Bundle();
+        bundle.putBoolean("userInteraction", true);
+        bundle.putAll(attributes.toBundle());
+        intent.putExtra("notification", bundle);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(reactContext, attributes.getNotificationId(), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(reactContext, attributes.getChannelId())
                 .setAutoCancel(attributes.isAutoCancel())
@@ -316,14 +351,74 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule {
             builder.setLargeIcon(attributes.getLargeIcon());
         }
 
+        builder.setContentIntent(pendingIntent);
+
         Notification notification = builder.build();
         notification.defaults |= Notification.DEFAULT_LIGHTS;
 
-        if (attributes.getTag().isEmpty()) {
+        if (attributes.getTag() != null && attributes.getTag().isEmpty()) {
             notificationManager.notify(attributes.getNotificationId(), notification);
         } else {
             notificationManager.notify(attributes.getTag(), attributes.getNotificationId(), notification);
         }
+
+    }
+
+    public Class getMainActivityClass() {
+        String packageName = reactContext.getPackageName();
+        Intent launchIntent = reactContext.getPackageManager().getLaunchIntentForPackage(packageName);
+        String className = launchIntent.getComponent().getClassName();
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+        Log.d("tag", "onActivityResult");
+    }
+
+    @Override
+    public void onActivityCreated(Activity activity, Bundle bundle) {
+
+    }
+
+    @Override
+    public void onActivityStarted(Activity activity) {
+        Intent intent = activity.getIntent();
+        Bundle bundle = this.getBundleFromIntent(intent);
+        if (bundle != null) {
+            bundle.putBoolean("foreground", false);
+            intent.putExtra("notification", bundle);
+            this.onNotificationReceived(bundle);
+        }
+    }
+
+    @Override
+    public void onActivityResumed(Activity activity) {
+
+    }
+
+    @Override
+    public void onActivityPaused(Activity activity) {
+
+    }
+
+    @Override
+    public void onActivityStopped(Activity activity) {
+
+    }
+
+    @Override
+    public void onActivitySaveInstanceState(Activity activity, Bundle bundle) {
+
+    }
+
+    @Override
+    public void onActivityDestroyed(Activity activity) {
 
     }
 }
