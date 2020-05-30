@@ -40,3 +40,9 @@ local.properties
 buck-out/
 \.buckd/
 *.keystore
+
+android/build/
+**/.idea
+**/.gradle
+**/*.iml
+**/.DS_Store

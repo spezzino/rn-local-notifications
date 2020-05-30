@@ -1,16 +1,9 @@
 {
   "name": "rn-local-notifications",
   "title": "React Native Local Notifications",
-  "version": "0.0.4",
+  "version": "0.0.8",
   "description": "Local notifications module",
   "main": "src/index.js",
-  "files": [
-    "README.md",
-    "android",
-    "src",
-    "ios",
-    "react-native-local-notifications.podspec"
-  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

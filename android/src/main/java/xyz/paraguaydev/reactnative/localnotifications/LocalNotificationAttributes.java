@@ -11,17 +11,19 @@ import androidx.core.app.NotificationManagerCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Set;
 
-public class LocalNotificationAttributes {
+public class LocalNotificationAttributes implements Serializable {
     private boolean autoCancel = true;
     private String category;
     private String hexColor;
     private int color;
     private String title;
     private String text;
-    private Bundle extraData;
+    private HashMap data;
     private String group;
     private boolean hasLargeIcon = false;
     private Bitmap largeIcon;
@@ -82,12 +84,12 @@ public class LocalNotificationAttributes {
         this.text = text;
     }
 
-    public Bundle getExtraData() {
-        return extraData;
+    public HashMap getData() {
+        return data;
     }
 
-    public void setExtraData(Bundle extraData) {
-        this.extraData = extraData;
+    public void setData(HashMap data) {
+        this.data = data;
     }
 
     public String getGroup() {
@@ -348,7 +350,7 @@ public class LocalNotificationAttributes {
         bundle.putString("color", hexColor);
         bundle.putString("title", title);
         bundle.putString("text", text);
-        bundle.putBundle("extraData", extraData);
+        bundle.putSerializable("data", data);
         bundle.putString("group", group);
         bundle.putBoolean("hasLargeIcon", hasLargeIcon);
         bundle.putString("largeIcon", largeIconString);
@@ -377,7 +379,7 @@ public class LocalNotificationAttributes {
         attributes.setHexColor(bundle.getString("color"));
         attributes.setTitle(bundle.getString("title"));
         attributes.setText(bundle.getString("text"));
-        attributes.setExtraData(bundle.getBundle("extraData"));
+        attributes.setData((HashMap) bundle.getSerializable("data"));
         attributes.setGroup(bundle.getString("group"));
         attributes.setHasLargeIcon(bundle.getBoolean("hasLargeIcon"));
         attributes.setLargeIconString(bundle.getString("largeIcon"));
@@ -400,13 +402,18 @@ public class LocalNotificationAttributes {
     }
 
     public JSONObject toJSONObject() {
-        JSONObject jsonObject = new JSONObject();
         Bundle bundle = this.toBundle();
+        return this.toJSONObject(bundle);
+    }
+
+    private JSONObject toJSONObject(Bundle bundle) {
+        JSONObject jsonObject = new JSONObject();
 
         Set<String> keys = bundle.keySet();
         for (String key : keys) {
             try {
-                jsonObject.put(key, JSONObject.wrap(bundle.get(key)));
+                Object value = bundle.get(key);
+                jsonObject.put(key, JSONObject.wrap(value));
             } catch (JSONException e) {
                 // Handle exception here
             }

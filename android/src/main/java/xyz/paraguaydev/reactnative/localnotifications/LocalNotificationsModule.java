@@ -32,6 +32,7 @@ import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -71,7 +72,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
         getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                Bundle bundle = intent.getBundleExtra("notification");
+                Bundle bundle = intent.getBundleExtra("rn-local-notifications");
 
                 // Notify the action.
                 LocalNotificationsModule.this.onNotificationReceived(bundle);
@@ -86,8 +87,8 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
 
     private Bundle getBundleFromIntent(Intent intent) {
         Bundle bundle = null;
-        if (intent.hasExtra("notification")) {
-            bundle = intent.getBundleExtra("notification");
+        if (intent.hasExtra("rn-local-notifications")) {
+            bundle = intent.getBundleExtra("rn-local-notifications");
         }
         return bundle;
     }
@@ -119,7 +120,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
     }
 
     @ReactMethod
-    public void presentLocalNotification(ReadableMap args, Callback callback) {
+    public void presentLocalNotification(ReadableMap args, Promise promise) {
         Resources res = reactContext.getResources();
         String packageName = reactContext.getPackageName();
         LocalNotificationAttributes attributes = new LocalNotificationAttributes();
@@ -162,15 +163,8 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
             attributes.setText(args.getString("text"));
         }
 
-        if (args.hasKey("extraData")) {
-            Bundle bundle = new Bundle();
-            try {
-                JSONObject extras = ReadableMapUtils.convertMapToJson(args.getMap("extraData"));
-                bundle.putString("extraData", extras.toString());
-                attributes.setExtraData(bundle);
-            } catch (JSONException e) {
-                // TODO reject the promise
-            }
+        if (args.hasKey("data")) {
+            attributes.setData(args.getMap("data").toHashMap());
         }
 
         if (args.hasKey("group")) {
@@ -259,7 +253,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
 
         this.postNotification(attributes);
 
-//        callback.invoke("Received numberArgument: "+numberArgument +" stringArgument: "+stringArgument);
+        promise.resolve(null);
     }
 
     private void createDefaultNotificationChannel(String channelId, String channelName, String channelDescription, int importance) {
@@ -319,7 +313,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
         Bundle bundle = new Bundle();
         bundle.putBoolean("userInteraction", true);
         bundle.putAll(attributes.toBundle());
-        intent.putExtra("notification", bundle);
+        intent.putExtra("rn-local-notifications", bundle);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(reactContext, attributes.getNotificationId(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT);
@@ -330,7 +324,6 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
                 .setColor(attributes.getColor())
                 .setContentTitle(attributes.getTitle())
                 .setContentText(attributes.getText())
-                .setExtras(attributes.getExtraData())
                 .setGroup(attributes.getGroup())
                 .setOngoing(attributes.isOngoing())
                 .setPriority(attributes.getPriority())
@@ -392,7 +385,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
         Bundle bundle = this.getBundleFromIntent(intent);
         if (bundle != null) {
             bundle.putBoolean("foreground", false);
-            intent.putExtra("notification", bundle);
+            intent.putExtra("rn-local-notifications", bundle);
             this.onNotificationReceived(bundle);
         }
     }
