@@ -46,3 +46,4 @@ android/build/
 **/.gradle
 **/*.iml
 **/.DS_Store
+**/xcshareddata/
