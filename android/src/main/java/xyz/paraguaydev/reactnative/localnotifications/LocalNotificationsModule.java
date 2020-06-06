@@ -125,7 +125,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
         String packageName = reactContext.getPackageName();
         LocalNotificationAttributes attributes = new LocalNotificationAttributes();
 
-        if (args.hasKey("notificationId")) {
+        if (args.hasKey("id")) {
             attributes.setNotificationId(args.getInt("notificationId"));
         } else {
             attributes.setNotificationId(new Random().nextInt());
@@ -159,7 +159,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
             attributes.setTitle(args.getString("title"));
         }
 
-        if (args.hasKey("text")) {
+        if (args.hasKey("body")) {
             attributes.setText(args.getString("text"));
         }
 
@@ -253,6 +253,13 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
 
         this.postNotification(attributes);
 
+        promise.resolve(null);
+    }
+
+    @ReactMethod
+    public void removeAllDeliveredNotifications(Promise promise){
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(reactContext);
+        notificationManager.cancelAll();
         promise.resolve(null);
     }
 

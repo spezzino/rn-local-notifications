@@ -22,3 +22,13 @@ Select File/New/File...
 Choose Swift file and click Next.
 Name it however you want, select your application target and create it.
 Accept to create Objective-C bridging header.
+
+### TODO
+- Documentation
+- Scheduled notifications
+- Cancel scheduled notifications
+- Refactor android code
+- Check param types (android & ios)
+- Typescript
+- Split android/ios js code, to throw unsupported method if not implemented natively
+- Implement subtext, images (feature complete notifications for both platforms)

@@ -37,17 +37,33 @@ class RNLocalNotifications: RCTEventEmitter {
         
         let content = UNMutableNotificationContent()
         
-        content.title = "Sample Title"
-        content.body = "This is example how to create"
-        content.sound = UNNotificationSound.default
-        content.badge = 1
-        content.userInfo = [:]
+        content.title = params["title"] as! String
+        content.body = params["body"] as! String
+        if let playSound = params["playSound"] {
+            if(playSound as! Bool){
+                content.sound = UNNotificationSound.default
+            }
+        }
+        if let badge = params["badge"] {
+            content.badge = NSNumber(value: badge as! Int)
+        }
+        if let data = params["data"] {
+            content.userInfo = data as! Dictionary
+        }else{
+            content.userInfo = [:]
+        }
+        var identifier = "\(Int.random(in: 1 ..< 10000000))"
+        if let id = params["id"] {
+            identifier = "\(NSNumber(value: id as! Int))"
+        }
+        if let category = params["category"] {
+            content.categoryIdentifier = category as! String
+        }
         
-        let date = Date(timeIntervalSinceNow: 5)
+        let date = Date(timeIntervalSinceNow: 1)
         let triggerDate = Calendar.current.dateComponents([.year,.month,.day,.hour,.minute,.second,], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
         
-        let identifier = "Local Notification"
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
         RNLocalNotifications.sharedInstance!.notificationCenter.add(request) { (error) in
@@ -57,7 +73,7 @@ class RNLocalNotifications: RCTEventEmitter {
             }
         }
         
-        resolve(true)
+        resolve(nil)
     }
 
     @objc(requestAuthorization:resolver:rejecter:)
@@ -88,15 +104,23 @@ class RNLocalNotifications: RCTEventEmitter {
         }
     }
     
+    @objc(removeAllDeliveredNotifications:rejecter:)
+    func removeAllDeliveredNotifications(_ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
+        RNLocalNotifications.sharedInstance!.notificationCenter.removeAllDeliveredNotifications()
+        resolve(nil)
+    }
+    
     func onNotification(_ identifier: String,
                         notificationReceived notification: UNNotificationContent) -> Void {
         self.sendEvent(withName: "onNotification", body: [
             "identifier": identifier,
             "title": notification.title,
-            "subtitle": notification.subtitle,
+//            "subtitle": notification.subtitle,
             "body": notification.body,
             "badge": notification.badge ?? 0,
-            "data": notification.userInfo
+            "data": notification.userInfo,
+            "category": notification.categoryIdentifier
         ])
     }
 }

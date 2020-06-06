@@ -24,4 +24,9 @@ RCT_EXTERN_METHOD(requestAuthorization:
                   rejecter:(RCTPromiseRejectBlock)reject
                   );
 
+RCT_EXTERN_METHOD(removeAllDeliveredNotifications:
+                  (RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject
+                  );
+
 @end
