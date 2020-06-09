@@ -160,7 +160,7 @@ public class LocalNotificationsModule extends ReactContextBaseJavaModule impleme
         }
 
         if (args.hasKey("body")) {
-            attributes.setText(args.getString("text"));
+            attributes.setText(args.getString("body"));
         }
 
         if (args.hasKey("data")) {
