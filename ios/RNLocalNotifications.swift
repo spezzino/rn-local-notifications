@@ -3,7 +3,6 @@
 //  RNLocalNotifications
 //
 //  Created by Stefano Pezzino on 6/1/20.
-//  Copyright © 2020 Facebook. All rights reserved.
 //
 
 import Foundation
@@ -31,49 +30,48 @@ class RNLocalNotifications: RCTEventEmitter {
         RNLocalNotifications.sharedInstance!.notificationCenter.getNotificationSettings { (settings) in
           if settings.authorizationStatus != .authorized {
             reject("presentLocalNotifications", "Notifications are not allowed. Did you call requestAuthorization?", nil)
-            return
+          } else {
+            let content = UNMutableNotificationContent()
+            
+            content.title = params["title"] as! String
+            content.body = params["body"] as! String
+            if let playSound = params["playSound"] {
+                if(playSound as! Bool){
+                    content.sound = UNNotificationSound.default
+                }
+            }
+            if let badge = params["badge"] {
+                content.badge = NSNumber(value: badge as! Int)
+            }
+            if let data = params["data"] {
+                content.userInfo = data as! Dictionary
+            }else{
+                content.userInfo = [:]
+            }
+            
+            var identifier = "\(Int.random(in: 1 ..< 10000000))"
+            if let id = params["id"] {
+                identifier = "\(NSNumber(value: id as! Int))"
+            }
+            if let category = params["category"] {
+                content.categoryIdentifier = category as! String
+            }
+            
+            let date = Date(timeIntervalSinceNow: 1)
+            let triggerDate = Calendar.current.dateComponents([.year,.month,.day,.hour,.minute,.second,], from: date)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
+            
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            RNLocalNotifications.sharedInstance!.notificationCenter.add(request) { (error) in
+                if let error = error {
+                    reject("presentLocalNotifications", "Error presenting local notification", error)
+                } else {
+                    resolve(nil)
+                }
+            }
           }
         }
-        
-        let content = UNMutableNotificationContent()
-        
-        content.title = params["title"] as! String
-        content.body = params["body"] as! String
-        if let playSound = params["playSound"] {
-            if(playSound as! Bool){
-                content.sound = UNNotificationSound.default
-            }
-        }
-        if let badge = params["badge"] {
-            content.badge = NSNumber(value: badge as! Int)
-        }
-        if let data = params["data"] {
-            content.userInfo = data as! Dictionary
-        }else{
-            content.userInfo = [:]
-        }
-        var identifier = "\(Int.random(in: 1 ..< 10000000))"
-        if let id = params["id"] {
-            identifier = "\(NSNumber(value: id as! Int))"
-        }
-        if let category = params["category"] {
-            content.categoryIdentifier = category as! String
-        }
-        
-        let date = Date(timeIntervalSinceNow: 1)
-        let triggerDate = Calendar.current.dateComponents([.year,.month,.day,.hour,.minute,.second,], from: date)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
-        
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-        RNLocalNotifications.sharedInstance!.notificationCenter.add(request) { (error) in
-            if let error = error {
-                reject("presentLocalNotifications", "Error presenting local notification", error)
-                return
-            }
-        }
-        
-        resolve(nil)
     }
 
     @objc(requestAuthorization:resolver:rejecter:)

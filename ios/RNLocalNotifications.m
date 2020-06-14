@@ -3,7 +3,6 @@
 //  LocalNotifications
 //
 //  Created by Stefano Pezzino on 5/31/20.
-//  Copyright © 2020 Facebook. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>

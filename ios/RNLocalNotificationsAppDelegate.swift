@@ -3,7 +3,6 @@
 //  RNLocalNotifications
 //
 //  Created by Stefano Pezzino on 6/1/20.
-//  Copyright © 2020 Facebook. All rights reserved.
 //
 
 import Foundation
