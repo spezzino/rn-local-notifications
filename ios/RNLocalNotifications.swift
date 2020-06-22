@@ -33,8 +33,12 @@ class RNLocalNotifications: RCTEventEmitter {
           } else {
             let content = UNMutableNotificationContent()
             
-            content.title = params["title"] as! String
-            content.body = params["body"] as! String
+            if let title = params["title"] as? String {
+                content.title = title
+            }
+            if let body = params["body"] as? String {
+                content.body = body
+            }
             if let playSound = params["playSound"] {
                 if(playSound as! Bool){
                     content.sound = UNNotificationSound.default

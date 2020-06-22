@@ -1,7 +1,7 @@
 {
   "name": "rn-local-notifications",
   "title": "React Native Local Notifications",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Local notifications module",
   "main": "src/index.js",
   "scripts": {
